@@ -204,6 +204,4 @@ This project is released under the **MIT License** — free for personal and com
 ---
 
 > Made with ❤️ using Flask, OpenAI, Pinecone & TailwindCSS
-````
-
 
