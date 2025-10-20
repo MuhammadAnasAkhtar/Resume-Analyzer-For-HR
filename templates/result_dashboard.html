@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Analysis Results</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <nav class="bg-sky-600 text-white">
+    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="text-lg font-semibold">📄 AI Resume Analyzer</div>
+      <a href="/" class="bg-white text-sky-600 px-3 py-1 rounded">New analysis</a>
+    </div>
+  </nav>
+
+  <main class="container mx-auto px-4 py-6 space-y-6">
+
+    <!-- Job Title Display -->
+    {% if job_title %}
+    <div class="bg-sky-100 border-l-4 border-sky-600 p-4 rounded">
+      <h1 class="text-2xl font-semibold text-sky-700">
+        Job Title: {{ job_title }}
+      </h1>
+      <p class="text-gray-600 text-sm mt-1">Based on uploaded job description</p>
+    </div>
+    {% endif %}
+
+    {% for candidate in selected[:top_n] %}
+    <!-- Accordion container -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <!-- Header -->
+      <button 
+        class="w-full flex justify-between items-center px-5 py-4 bg-sky-100 hover:bg-sky-200 transition"
+        onclick="toggleAccordion('panel{{ loop.index }}')"
+      >
+        <div class="text-left">
+          <h2 class="font-semibold text-sky-700">
+            Candidate {{ loop.index }} — {{ candidate.orig_name if candidate.orig_name else "Resume " ~ loop.index }}
+          </h2>
+          <p class="text-sm text-gray-500">Relevance Score: {{ candidate.rel_score }}</p>
+        </div>
+        <svg id="arrow{{ loop.index }}" class="w-5 h-5 text-sky-700 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <!-- Accordion content -->
+      <div id="panel{{ loop.index }}" class="hidden border-t px-6 py-5 bg-white">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          
+          <!-- Left: ATS + AI Analysis -->
+          <div class="space-y-6">
+            <!-- Score + metrics -->
+            <div class="flex gap-6 items-center">
+              <div class="w-40">
+                <canvas id="relevanceGauge{{ loop.index }}"></canvas>
+                <div class="text-center mt-2">
+                  <div class="text-2xl font-bold">{{ candidate.rel_score }}</div>
+                  <div class="text-sm text-gray-500">Relevance Score</div>
+                </div>
+              </div>
+
+              <div class="flex-1 grid grid-cols-2 gap-4">
+                <div class="p-3 bg-gray-50 rounded">
+                  <div class="text-xs text-gray-500">Keywords</div>
+                  <div class="text-xl font-semibold">{{ candidate.kw_score }}</div>
+                </div>
+                <div class="p-3 bg-gray-50 rounded">
+                  <div class="text-xs text-gray-500">Experience</div>
+                  <div class="text-xl font-semibold">{{ candidate.yrs }} yrs</div>
+                </div>
+                <div class="p-3 bg-gray-50 rounded">
+                  <div class="text-xs text-gray-500">Education</div>
+                  <div class="text-xl font-semibold">{{ candidate.edu.degrees|join(', ') if candidate.edu.degrees else 'N/A' }}</div>
+                </div>
+                <div class="p-3 bg-gray-50 rounded">
+                  <div class="text-xs text-gray-500">Skills</div>
+                  <div class="text-xl font-semibold">{{ candidate.skills_found|length }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ATS -->
+            <div>
+              <h3 class="font-semibold mb-2">ATS Analysis</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 class="font-medium">Matched Keywords ({{ candidate.matched_kws|length }})</h4>
+                  <p class="text-sm text-gray-600">{{ candidate.matched_kws|join(', ') }}</p>
+
+                  <h4 class="font-medium mt-3">Missing Keywords ({{ candidate.missing_kws|length }})</h4>
+                  <p class="text-sm text-red-600">{{ candidate.missing_kws|join(', ') }}</p>
+
+                  <h4 class="font-medium mt-3">Skills Found</h4>
+                  <p class="text-sm text-gray-700">{{ candidate.skills_found|join(', ') }}</p>
+                </div>
+                <div>
+                  <h4 class="font-medium">Achievements ({{ candidate.achievements|length }})</h4>
+                  <ul class="list-disc list-inside text-sm text-gray-700">
+                    {% for a in candidate.achievements[:8] %}
+                      <li>{{ a }}</li>
+                    {% endfor %}
+                  </ul>
+                  <h4 class="font-medium mt-3">Contact</h4>
+                  <p class="text-sm text-gray-700">
+                    Emails: {{ candidate.contact.emails|join(', ') }}<br/>
+                    Phones: {{ candidate.contact.phones|join(', ') }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- AI Analysis -->
+            <div>
+              <h3 class="font-semibold">AI Analysis & Suggestions</h3>
+              {% set llm = candidate.llm_analysis %}
+              {% if llm.get('strengths') %}
+                <strong>Strengths</strong>
+                <ul class="list-disc list-inside mt-2 mb-3">
+                  {% for s in llm.strengths %}
+                    <li>{{ s }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+              {% if llm.get('missing_skills') %}
+                <strong>Missing Skills</strong>
+                <ul class="list-disc list-inside mt-2 mb-3">
+                  {% for s in llm.missing_skills %}
+                    <li>{{ s }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+              {% if llm.get('quick_recommendation') %}
+                <strong>Quick Recommendation</strong>
+                <p class="mt-2">{{ llm.quick_recommendation }}</p>
+              {% endif %}
+              {% if llm.get('tone') %}
+                <strong>Tone Detected</strong>
+                <p class="mt-2">{{ llm.tone }}</p>
+              {% endif %}
+              {% if llm.get('suggested_roles') %}
+                <strong>Suggested Roles</strong>
+                <ul class="list-disc list-inside mt-2">
+                  {% for r in llm.suggested_roles %}
+                    <li>{{ r.role }} — {{ r.confidence }}%</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+              {% if llm.get('raw') %}
+                <strong>AI Analysis (raw output)</strong>
+                <p class="text-red-600 mt-2">{{ llm.raw }}</p>
+              {% endif %}
+            </div>
+
+            <!-- Recommendations -->
+            <div>
+              <h3 class="font-semibold">Recommendations & Fixes</h3>
+              <ul class="list-disc list-inside text-sm mt-2">
+                {% for c in candidate.format_checks %}
+                  <li>{{ c }}</li>
+                {% endfor %}
+                {% if candidate.generic_phrases %}
+                  <li>Generic phrases: {{ candidate.generic_phrases|join(', ') }} — consider rewriting.</li>
+                {% endif %}
+                {% if candidate.weak_verbs %}
+                  <li>Weak verbs used: {{ candidate.weak_verbs|join(', ') }} — use stronger action verbs.</li>
+                {% endif %}
+              </ul>
+            </div>
+          </div>
+
+          <!-- Right: Resume Preview -->
+          <div class="border rounded-lg overflow-hidden">
+            <h3 class="bg-sky-100 text-sky-700 px-3 py-2 font-semibold text-sm">Resume Preview</h3>
+            <iframe 
+              src="{{ url_for('download_file', filename=candidate.saved_name) }}" 
+              width="100%" 
+              height="1000"
+              style="border:none;"
+            ></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </main>
+
+  <script>
+    // Accordion open/close logic
+    function toggleAccordion(id) {
+      const panel = document.getElementById(id);
+      const arrow = document.getElementById('arrow' + id.replace('panel',''));
+      const isHidden = panel.classList.contains('hidden');
+      document.querySelectorAll('[id^="panel"]').forEach(p => p.classList.add('hidden'));
+      document.querySelectorAll('[id^="arrow"]').forEach(a => a.classList.remove('rotate-180'));
+      if (isHidden) {
+        panel.classList.remove('hidden');
+        arrow.classList.add('rotate-180');
+      }
+    }
+
+    // Render relevance gauges
+    {% for candidate in selected[:top_n] %}
+      const ctx{{ loop.index }} = document.getElementById('relevanceGauge{{ loop.index }}').getContext('2d');
+      const score{{ loop.index }} = {{ candidate.rel_score }};
+      const data{{ loop.index }} = { datasets: [{ data: [score{{ loop.index }}, 100 - score{{ loop.index }}], circumference: 180, rotation: 270, cutout: '70%' }] };
+      new Chart(ctx{{ loop.index }}, { type: 'doughnut', data: data{{ loop.index }}, options: { plugins: { legend: { display: false }, tooltip: { enabled: false } }, elements: { arc: { borderWidth: 0 } } }});
+    {% endfor %}
+  </script>
+</body>
+</html>
